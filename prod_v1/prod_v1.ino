@@ -1,19 +1,18 @@
-/*temperature and humidity*/
-#include "DHT.h"
-#include <string.h>
- #include <ctype.h>
+/*Sensors and pins 
+* Pins must match the circuitry. Change these pin numbers
+* if you've used different pins.
+*/
 
-#define DHTPIN 2     // what pin we're connected to
-#define DHTTYPE DHT11   // DHT 11 
-DHT dht(DHTPIN, DHTTYPE);
-
-int ledPin = 13;                  // LED test pin
+// GPS Code credit n(with modifications)
+// Igor Gonz�lez Mart�n. 05-04-2007
+// igor.gonzalez.martin@gmail.com
+// http://playground.arduino.cc/Tutorials/GPS
 int rxPin = 7;                    // RX PIN 
 int txPin = 8;                    // TX TX
 int byteGPS=-1;
 char linea[300] = "";
 char comandoGPR[7] = "$GPRMC";
-int cont=0;
+int count=0;
 int bien=0;
 int conta=0;
 int indices[13];
@@ -44,8 +43,6 @@ void setup()
   for (int i=0;i<300;i++){       // Initialize a buffer for received data
    linea[i]=' ';
   }   
-  Serial.println("DHT11 start!");
-  dht.begin();
 }
 
 void loop()
@@ -80,18 +77,14 @@ void loop()
   digitalWrite(ledPin, HIGH);
    byteGPS=Serial.read();         // Read a byte of the serial port
    if (byteGPS == -1) {           // See if the port is empty yet
-     Serial.print("Latitude: ");
-     Serial.print("37.874955 N    ");
-     Serial.print("Longitude: ");
-     Serial.println("-122.25837 W;");
-     
+     delay(100);
    } else {
-     linea[conta]=byteGPS;        // If there is serial port data, it is put in the buffer
+     linea[counta]=byteGPS;        // If there is serial port data, it is put in the buffer
      conta++;                      
      Serial.write(byteGPS); 
      if (byteGPS==13){            // If the received byte is = to 13, end of transmission
        digitalWrite(ledPin, LOW); 
-       cont=0;
+       count=0;
        bien=0;
        for (int i=1;i<7;i++){     // Verifies if the received command starts with $GPR
          if (linea[i]==comandoGPR[i-1]){
@@ -101,12 +94,12 @@ void loop()
        if(bien==6){               // If yes, continue and process the data
          for (int i=0;i<300;i++){
            if (linea[i]==','){    // check for the position of the  "," separator
-             indices[cont]=i;
-             cont++;
+             indices[count]=i;
+             count++;
            }
            if (linea[i]=='*'){    // ... and the "*"
              indices[12]=i;
-             cont++;
+             count++;
            }
          }
          Serial.println("");      // ... and write to the serial port
@@ -147,18 +140,24 @@ void loop()
 }
 
 float sense(int pin) {
-  //TODO: calibrate these sensors
+  //Sensor calibration defined in datasheets. Need to heat sensor before determining resistance-ppm relation.
   return analogRead(pin);
 }
 
 void senseTemperature() {
   float voltage, degreesC, degreesF;
+  //Assuming a 3.3V power source, use the following line. If 5V power source, use line following.
+  //Note: Arduino Fio connected to the computer using a FTDI cable will emit a 5V power. However, once using
+  //XBee radio, the power will become 3.3V.
   voltage = analogRead(temperaturePin) * 0.00322580645;
   //voltage = analogRead(temperaturePin) * 0.00488758553;
+  
+  //Temperature conversion. The 19.5 comes from the thermistor's datasheet. Where a change of 1 degree Celcius results 
+  //in a 19.5 mV change. This may also differ based on the thermistor being used, so refer to the datasheet. 
   degreesC = (voltage * 1000.0 / 19.5) - 20.5;
   degreesF = degreesC * (9.0/5.0) + 32.0;
   
-  //uncomment if debugging
+  //For debugging purposes:
   //Serial.print("voltage: ");
   //Serial.print(voltage);
   Serial.print("  deg C: ");
